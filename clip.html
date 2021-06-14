@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>obj模型剖切 - 带封口</title>
+    <meta charset="utf-8">
+</head>
+<style>
+    body {
+        overflow: hidden;
+        background-color: #263238;
+    }
+</style>
+
+<body>
+    <!-- <script src="./js/ajax/libs/threejs/r73/three.js"></script> -->
+    <script type="module">
+        import * as THREE from './build/three.module.js';
+        import { OrbitControls } from './jsm/controls/OrbitControls.js';
+        import { GUI } from './jsm/libs/dat.gui.module.js';
+        import Stats from './jsm/libs/stats.module.js';
+        import { OBJLoader } from './jsm/loaders/OBJLoader.js';
+        import { MTLLoader } from './jsm/loaders/MTLLoader.js';
+
+        var camera, scene, renderer, object, stats;     // 创建相机、场景、渲染器、物体、性能面板
+        var planes, planeObjects = [], planeHelpers;    // 创建平面
+        const params = {
+            planeX: {
+                剖切程度: 0,
+                反向剖切: false,
+                显示剖切面: false
+            },
+            planeY: {
+                剖切程度: 0,
+                反向剖切: false,
+                显示剖切面: false
+            },
+            planeZ: {
+                剖切程度: 0,
+                反向剖切: false,
+                显示剖切面: false
+            }
+
+        };
+
+        // 初始化
+        init();
+        // 场景刷新
+        animate();
+        function createPlaneStencilGroup(geometry, plane, renderOrder) {
+
+            // 创建组合对象
+            const group = new THREE.Group();
+            // 平面的材质
+            const baseMat = new THREE.MeshBasicMaterial();
+            // 平面材质的属性设置
+            baseMat.depthWrite = false;
+            baseMat.depthTest = false;
+            baseMat.colorWrite = false;
+            baseMat.stencilWrite = true;
+            baseMat.stencilFunc = THREE.AlwaysStencilFunc;
+
+            // 平面的背面
+            // 克隆面片材质为背面材质
+            const mat0 = baseMat.clone();
+            // 背面材质只显示背面
+            mat0.side = THREE.BackSide;
+            // 设置用于裁切物体平面的背面材质的裁切面
+            mat0.clippingPlanes = [plane];
+            mat0.stencilFail = THREE.IncrementWrapStencilOp;
+            mat0.stencilZFail = THREE.IncrementWrapStencilOp;
+            mat0.stencilZPass = THREE.IncrementWrapStencilOp;
+
+            // 创建并定义承载背面材质的面片mesh
+            const mesh0 = new THREE.Mesh(geometry, mat0);	//面片通过已有的几何体和材质进行创建
+            mesh0.renderOrder = renderOrder;
+            group.add(mesh0);
+
+            // 平面的正面
+            // 克隆面片材质为正面材质
+            const mat1 = baseMat.clone();
+            // 正面材质只显示正面
+            mat1.side = THREE.FrontSide;
+            // 设置用于裁切物体平面的背面材质的裁切面，正反面都要设置是因为裁切面有翻转裁切的动作
+            mat1.clippingPlanes = [plane];
+            mat1.stencilFail = THREE.DecrementWrapStencilOp;
+            mat1.stencilZFail = THREE.DecrementWrapStencilOp;
+            mat1.stencilZPass = THREE.DecrementWrapStencilOp;
+
+            const mesh1 = new THREE.Mesh(geometry, mat1);
+            mesh1.renderOrder = renderOrder;
+
+            group.add(mesh1);
+
+            return group;
+
+        }
+
+        function init() {
+
+            // 创建场景
+            scene = new THREE.Scene();
+
+            // 创建并定义透视相机
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 20000);
+            // 定义透视相机位置
+            camera.position.set(20, 20, 20);
+
+            // 向场景中添加环境光
+            scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+
+            // 创建并定义平行光
+            const dirLight = new THREE.DirectionalLight(0xffffff, 10);   //定义平行光（光源颜色和光强）
+            dirLight.position.set(5, 10, 7.5);	//平行光位置的设置
+            dirLight.castShadow = true;	//光源开启投影功能
+            // // 投射的阴影的最大可视范围
+            // dirLight.shadow.camera.right = 200;
+            // dirLight.shadow.camera.left = - 200;
+            // dirLight.shadow.camera.top = 200;
+            // dirLight.shadow.camera.bottom = - 200;
+
+            // // 投射的阴影的像素质量
+            // dirLight.shadow.mapSize.width = 1024 * 15;
+            // dirLight.shadow.mapSize.height = 1024 * 15;
+            // // 将平行光添加进场景中
+            scene.add(dirLight);
+
+            // 创建平面
+            planes = [
+                new THREE.Plane(new THREE.Vector3(- 1, 0, 0), 0),
+                new THREE.Plane(new THREE.Vector3(0, - 1, 0), 0),
+                new THREE.Plane(new THREE.Vector3(0, 0, - 1), 0)
+            ];
+
+            // 给planes平面数组中的每一个平面添加planeHelpers
+            planeHelpers = planes.map(p => new THREE.PlaneHelper(p, 10, 0xffffff));
+
+            // 将每一个planeHelper设置为可见，并添加进场景
+            planeHelpers.forEach(ph => {
+                ph.visible = false;
+                scene.add(ph);
+            });
+
+            object = new THREE.Group();
+            scene.add(object);
+            // var obj_loader = new OBJLoader();
+            // var mtl_loader = new MTLLoader();
+            var oLoad = new THREE.ObjectLoader();
+            // mtl_loader.load('./models/Utah.mtl', function (materials) {
+            // materials.preload();
+            // obj_loader.setMaterials(materials);
+            oLoad.load('./models/house.rvt.js', function (obj) {
+
+                obj.scale.set(0.1, 0.1, 0.1);
+
+                // 获取模型包围盒
+                let bbox = new THREE.Box3().setFromObject(obj);
+                var x = -(bbox.max.x + bbox.min.x) / 2;
+                var y = -(bbox.max.y + bbox.min.y) / 2;
+                var z = -(bbox.max.z + bbox.min.z) / 2;
+                // 模型居中（包围盒中居中）
+                obj.position.set(-(bbox.max.x + bbox.min.x) / 2,
+                    -(bbox.max.y + bbox.min.y) / 2,
+                    -(bbox.max.z + bbox.min.z) / 2);
+
+                obj.children.forEach(function (obj3d) {
+                    if (obj3d instanceof THREE.Object3D) {
+                        obj3d.children.forEach(function (mesh) {
+                            if (mesh instanceof THREE.Mesh) {
+                                mesh.material = new THREE.MeshStandardMaterial({
+                                    color: mesh.material.color,
+                                    clippingPlanes: planes,
+                                    clipShadows: true,
+                                    shadowSide: THREE.DoubleSide,
+                                    side: THREE.DoubleSide
+                                });
+                                mesh.castShadow = true;
+                                mesh.renderOrder = 10;
+                            }
+                        })
+                    }
+
+                });
+                console.log(obj);
+                object.add(obj);
+
+                // PlaneGeometry(width : Float, height : Float, widthSegments : Integer, heightSegments : Integer)
+                // width 宽度 — Width along the X axis.Default is 1.
+                // height 高度 — Height along the Y axis.Default is 1.
+                // widthSegments(optional) 宽度分段（可选） — Optional.Default is 1.
+                // heightSegments(optional) 高度分段（可选） — Optional.Default is 1.
+                var planeGeom = new THREE.PlaneBufferGeometry(4000, 4000);
+                for (let i = 0; i < 3; i++) {
+
+                    const poGroup = new THREE.Group();
+                    const plane = planes[i];
+                    for (let w = 0; w < obj.children.length; w++) {
+                        var geometry0 = object.children[0].children[w].geometry.clone();
+                        geometry0.translate(x / 0.1, y / 0.1, z / 0.1);
+                        var stencilGroup = createPlaneStencilGroup(geometry0, plane, i + 1);
+                        stencilGroup.scale.set(0.1, 0.1, 0.1);
+                        object.add(stencilGroup);
+
+                    }
+
+                    const planeMat =
+                        new THREE.MeshStandardMaterial({
+
+                            // 剖切面的颜色
+                            color: 0x00FFFF,
+                            // 剖切面的金属光泽度
+                            metalness: 0.1,
+                            // 剖切面的粗糙度
+                            roughness: 0.75,
+                            // 剖切面的剔除
+                            clippingPlanes: planes.filter(p => p !== plane),
+
+                            // 深度写入
+                            stencilWrite: true,
+                            stencilRef: 0,
+                            stencilFunc: THREE.NotEqualStencilFunc,
+                            stencilFail: THREE.ReplaceStencilOp,
+                            stencilZFail: THREE.ReplaceStencilOp,
+                            stencilZPass: THREE.ReplaceStencilOp,
+                        });
+                    const po = new THREE.Mesh(planeGeom, planeMat);
+                    po.onAfterRender = function (renderer) {
+                        renderer.clearStencil();
+                    };
+                    po.renderOrder = i + 1.1;
+                    poGroup.add(po);
+                    planeObjects.push(po);
+                    scene.add(poGroup);
+                }
+            });
+            // });
+
+
+            // mesh的创建默认是平行于xOy平面
+            const ground = new THREE.Mesh(
+                // PlaneGeometry(width : Float, height : Float, widthSegments : Integer, heightSegments : Integer)
+                // width 宽度 — Width along the X axis.Default is 1.
+                // height 高度 — Height along the Y axis.Default is 1.
+                // widthSegments(optional) 宽度分段（可选） — Optional.Default is 1.
+                // heightSegments(optional) 高度分段（可选） — Optional.Default is 1.
+                new THREE.PlaneGeometry(100, 100, 1, 1),
+                // 投射到地面的阴影材质
+                new THREE.ShadowMaterial({ color: 0, opacity: 0.5, side: THREE.DoubleSide })
+            );
+
+            // 调整ground的位置
+            ground.rotation.x = - Math.PI / 2; // 从xOy平面旋转成xOz平面
+            ground.position.y = - 3;	// 调整地面的高度
+            ground.receiveShadow = true;	//开启地面的阴影接收
+            scene.add(ground);	// 将地面添加至场景
+
+            // 创建性能面板
+            stats = new Stats();
+            // 向body标签添加最后一个子节点（stats.dom）
+            document.body.appendChild(stats.dom);
+
+            // 渲染器的相关设置
+            // 渲染器开启抗锯齿
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            // 渲染器显示场景中的阴影
+            renderer.shadowMap.enabled = true;
+            // 渲染器自适应设备像素比例
+            renderer.setPixelRatio(window.devicePixelRatio);
+            // 渲染器匹配当前窗口尺寸
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            // 设置渲染器的背景颜色，默认是黑色
+            renderer.setClearColor(0x263238);
+            // 给浏览器窗口添加监听（窗口尺寸是否发生变化）事件
+            window.addEventListener('resize', onWindowResize);
+            // 向body标签添加最后一个子结点（renderer.doElement）
+            document.body.appendChild(renderer.domElement);
+            // 定义渲染器是否考虑对象级剪切平面，默认为false
+            renderer.localClippingEnabled = true;
+
+            // 控件
+            const controls = new OrbitControls(camera, renderer.domElement);
+            // 控件的更新
+            controls.update();
+
+            // 图形用户界面
+            const gui = new GUI();
+            // 将参数数组中planeX属性作为折叠项类型添加到图形用户界面
+            const planeX = gui.addFolder('X轴剖切');
+            // 将参数数组中planeX属性的displayHelper和negated属性作为复选框类型，constant属性作为slider类型添加到图形用户界面
+            planeX.add(params.planeX, '显示剖切面').onChange(v => planeHelpers[0].visible = v);
+            planeX.add(params.planeX, '剖切程度').min(- 200).max(200).onChange(d => planes[0].constant = d);
+            planeX.add(params.planeX, '反向剖切').onChange(() => {
+
+                planes[0].negate();
+                params.planeX.constant = planes[0].constant;
+
+            });
+            planeX.open();	// 打开折叠项
+            // 将参数数组中planeY属性作为折叠项类型添加到图形用户界面
+            const planeY = gui.addFolder('Y轴剖切');
+            // 将参数数组中planeY属性的displayHelper和negated属性作为复选框类型，constant属性作为slider类型添加到图形用户界面
+            planeY.add(params.planeY, '显示剖切面').onChange(v => planeHelpers[1].visible = v);
+            planeY.add(params.planeY, '剖切程度').min(- 300).max(300).onChange(d => planes[1].constant = d);
+            planeY.add(params.planeY, '反向剖切').onChange(() => {
+
+                planes[1].negate();
+                // 将控制面板参数的constant值传给平面的constant属性
+                params.planeY.constant = planes[1].constant;
+
+            });
+            planeY.open();  // 打开planeY折叠项
+
+            // 将参数数组中planeZ属性作为折叠项类型添加到图形用户界面
+            const planeZ = gui.addFolder('Z轴剖切');
+            // 将参数数组中planeZ属性的displayHelper和negated属性作为复选框类型，constant属性作为slider类型添加到图形用户界面
+            planeZ.add(params.planeZ, '显示剖切面').onChange(v => planeHelpers[2].visible = v);
+            planeZ.add(params.planeZ, '剖切程度').min(- 200).max(200).onChange(d => planes[2].constant = d);
+            planeZ.add(params.planeZ, '反向剖切').onChange(() => {
+
+                planes[2].negate();
+                // 将控制面板参数的constant值传给平面的constant属性
+                params.planeZ.constant = planes[2].constant;
+
+            });
+            planeZ.open();	// 打开折叠项
+
+        }
+
+        // 用于适应浏览器窗口的大小调整
+        function onWindowResize() {
+
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+
+        }
+
+        // 场景刷新函数
+        function animate() {
+
+            // 告诉浏览器——你希望执行一个动画，
+            // 并且要求浏览器在下次重绘之前调用指定的回调函数（这里指animate()）更新动画。
+            // 该方法需要传入一个回调函数（这里指animate()）作为参数，
+            // 该回调函数（这里指animate()）会在浏览器下一次重绘之前执行。
+            requestAnimationFrame(animate);
+            // 作用？
+            for (let i = 0; i < planeObjects.length; i++) {
+
+                const plane = planes[i];
+                const po = planeObjects[i];
+                plane.coplanarPoint(po.position);
+                po.lookAt(
+                    po.position.x - plane.normal.x,
+                    po.position.y - plane.normal.y,
+                    po.position.z - plane.normal.z,
+                );
+
+            }
+
+            // 加载性能开始统计
+            stats.begin();
+            // 渲染器渲染场景
+            renderer.render(scene, camera);
+            // 加载性能结束统计
+            stats.end();
+
+        }
+
+    </script>
+
+</body>
+
+</html>

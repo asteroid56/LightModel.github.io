@@ -1,0 +1,85 @@
+/* #ClipDiv {
+	width:256px;
+	height:146px;
+	background-color:#8f8f8f;
+	border: solid 3px #b4b4b4;
+	position:absolute;
+	top:275px;
+	left: 200px;
+	transform:translateX(-50%) translateY(-50%);
+	-moz-transform:translateX(-50%) translateY(-50%);
+	-webkit-transform:translateX(-50%) translateY(-50%);
+	-ms-transform:translateX(-50%) translateY(-50%);
+	border-radius:10px;
+} */
+
+#RoamDiv {
+	width: 256px;
+	height: 146px;
+	background-color: #8f8f8f;
+	border: solid 3px #b4b4b4;
+	position: absolute;
+	top: 400px;
+	left: 200px;
+	transform: translateX(-50%) translateY(-50%);
+	-moz-transform: translateX(-50%) translateY(-50%);
+	-webkit-transform: translateX(-50%) translateY(-50%);
+	-ms-transform: translateX(-50%) translateY(-50%);
+	border-radius: 10px;
+}
+
+#StaticDiv {
+	width: 300px;
+	height: 200px;
+	background-color: #8f8f8f;
+	border: solid 3px #b4b4b4;
+	position: absolute;
+	top: 530px;
+	left: 220px;
+	transform: translateX(-50%) translateY(-50%);
+	-moz-transform: translateX(-50%) translateY(-50%);
+	-webkit-transform: translateX(-50%) translateY(-50%);
+	-ms-transform: translateX(-50%) translateY(-50%);
+	border-radius: 10px;
+}
+
+#StaticDiv p {
+	color: white;
+	font-size: 15pt;
+	font-weight: bolder;
+	line-height: 45px;
+	text-align: center;
+	margin: auto;
+}
+
+/* #PerspDiv{
+	text-align: center;
+	width:300px;
+	height:200px;
+	background-color:#8f8f8f;
+	border: solid 3px #b4b4b4;
+	position:absolute;
+	top:105px;
+	left:220px;
+	transform:translateX(-50%) translateY(-50%);
+	-moz-transform:translateX(-50%) translateY(-50%);
+	-webkit-transform:translateX(-50%) translateY(-50%);
+	-ms-transform:translateX(-50%) translateY(-50%);
+	border-radius:10px;
+} */
+
+#WireDiv {
+	text-align: center;
+	width: 230px;
+	height: 100px;
+	background-color: #8f8f8f;
+	border: solid 3px #b4b4b4;
+	position: absolute;
+	top: 420px;
+	left: 185px;
+	transform: translateX(-50%) translateY(-50%);
+	-moz-transform: translateX(-50%) translateY(-50%);
+	-webkit-transform: translateX(-50%) translateY(-50%);
+	-ms-transform: translateX(-50%) translateY(-50%);
+	border-radius: 10px;
+}

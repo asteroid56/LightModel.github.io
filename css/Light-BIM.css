@@ -1,0 +1,90 @@
+body {
+	margin: 0;
+	padding: 0;
+	overflow: hidden;
+	font-family: 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', 'Helvetica', 'Arial', sans-serif;
+	font-weight: 300;
+	line-height: 1.2;
+	/* 字符间距 */
+	letter-spacing: -0.004em;
+}
+
+canvas {
+	width: 90%;
+	height: 90%
+}
+
+#introContainer {
+	background: #1296db;
+}
+
+/* 伪加载界面文字样式 */
+#loadtext {
+	font-family: 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', 'Helvetica', 'Arial', serif;
+	font-weight: 500;
+	font-size: 14pt;
+	color: #ffffff;
+	line-height: 1.2;
+	letter-spacing: -0.004em;
+	text-align: center;
+	position: fixed;
+	width: 100%;
+	top: 68%;
+	/* z-index: 10; */
+}
+
+#backToThreePro {
+	position: absolute;
+	height: 20px;
+	width: 60px;
+	background: rgb(0, 170, 127);
+	top: 10px;
+	left: 20px;
+	text-decoration: none;
+	color: white;
+	font-weight: bolder;
+	border-radius: 8px;
+	padding: 5px;
+	box-shadow: -5px 5px 3px #838383;
+}
+
+
+
+/* 构件信息面板样式 */
+#InfoPanel {
+	top: 0;
+	right: 0;
+	opacity: 0.8;
+	position: absolute;
+	border-radius: 10px;
+	background-color: #DEDEDE;
+	box-shadow: -4px 6px 8px #3e3e3e;
+}
+
+/* 构建信息面板标题样式 */
+#InfoPanelTitle {
+	font-weight: bold;
+	color: #000000;
+	padding: 10px;
+	text-align: center;
+	border-top: 4px solid #555555;
+	border-left: 4px solid #555555;
+	border-right: 4px solid #555555;
+}
+
+/* 构件信息面板中信息块的样式 */
+#msg {
+	font-size: 11pt;
+	font-weight: bold;
+	/* 信息块的padding为上右下左各10px */
+	padding: 10px;
+	max-width: 250px;
+	max-height: 600px;
+	overflow-x: auto;
+	overflow-y: auto;
+	background-color: #aaffff;
+	/* 信息块的 左上 右上 右下 左下 的圆角半径*/
+	border-radius: 0 0 0 10px;
+	border: 4px solid #555555;
+	/* 盒子 */
+}

@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html language="zh-CN">
+
+<head>
+	<meta charset=utf-8>
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	<title>Light-BIM</title>
+	<!-- 全局样式 -->
+	<link rel="stylesheet" type="text/css" href="./css/Light-BIM.css">
+	<!-- 操作指南样式 -->
+	<link rel="stylesheet" type="text/css" href="./css/guide.css">
+	<!-- 控制面板样式 -->
+	<link rel="stylesheet" type="text/css" href="./css/dashboard.css">
+	<!-- 模型分解slider样式 -->
+	<link rel="stylesheet" type="text/css" href="./css/boomSlider.css">
+	<!-- fontawesome字体 -->
+	<link rel="stylesheet" type="text/css"
+		href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+	<!-- 可移动窗口样式 -->
+	<link rel="stylesheet" type="text/css" href="./css/floatWindow.css" />
+	<!-- html2canvas.js -->
+</head>
+
+<body>
+	<!-- 加载界面 -->
+	<div id="introContainer">
+		<div id="loadtext">加载中 ▌▌▌▌▌▌▌▌▌▌100%，请稍后</div>
+	</div>
+
+	<!-- 操作指南 -->
+	<ul class="guide" title="操作指南">
+		<li id="guideHover">
+			<img id="guideIcon" src="img/png/指南针蓝@0,25x.png">
+			<img id="guideIconPanel" src="img/png/指南针表盘@0,25x.png">
+			<div class="guideContent">
+				<h2>操作指南</h2>
+				<p>
+					组件信息：默认开启，鼠标点击场景中模型的组件，即可再浏览器窗口左侧的组件面板中查阅相关信息；再次点击即可取消该功能。
+				</p>
+				<p>
+					剖切模型：默认关闭，点击即可开启对模型进行剖切面的观察，再次点击即可取消该功能。
+				</p>
+				<p>
+					爆炸模型：默认关闭，点击即可开启模型分解模式，对各个构件进行仔细观察，再次点击即可取消该功能。
+				</p>
+				<p>
+					网格模型：默认关闭，点击功能按钮查看模型网格；由于网格模式下很难分辨面片之间的区别，该模式下禁止获取构件信息。
+				</p>
+				<p>
+					漫游模式：默认关闭自定义漫游路径，默认开启键盘操作漫游。
+				</p>
+				<p>
+					保存场景：保存当前窗口的模型展示图片。
+				</p>
+				<p>
+					更换背景：更换天空盒背景。
+				</p>
+				<p>
+					视角更换：默认为主视角，可选择上下左右前后视角和视方体8个顶点的视角。
+				</p>
+				<p>
+					隔离图元：该功能由鼠标右键操作，右击组件即可打开操作菜单，选择对应功能。
+				</p>
+			</div>
+		</li>
+	</ul>
+	<!-- 主容器：包含用于显示模型的界面以及一个控制面板 -->
+	<div id="mainContainer" hidden>
+		<!-- 控制面板/Dashboard -->
+		<div class="Dashboard">
+			<div class="button description-event active" style="margin: 4px auto;" title="组件信息">
+				<span class="icon"><i class="fa fa-file-text"></i></span>
+			</div>
+			<div class="button" id="magnify" title="框选细节并放大查看">
+				<span class="icon"><i class="fa fa-search"></i></span>
+			</div>
+			<div class="button" title="主视角">
+				<span class="icon"><i class="fa fa-home"></i></span>
+			</div>
+			<div class="button" id="perspective" title="视角选择">
+				<span class="icon"><i class="fa fa-eye"></i></span>
+				<div id="PerspDiv" style="color: white; visibility: hidden">
+					<span class="icon"><i class="fa fa-eye"> 视角选择</i></span>
+					<p>
+						<span>前</span><span>后</span><span>左</span><span>右</span>
+					</p>
+					<p>
+						<span>左前</span><span>左后</span><span>左上</span><span>左下</span>
+					</p>
+					<p>
+						<span>右前</span><span>右后</span><span>右上</span><span>右下</span>
+					</p>
+					<p style="font-size: 14px;">Copyright © 韦春, All Rights Reserved.</p>
+				</div>
+			</div>
+			<div class="button" id="clipModel" title="剖切模型">
+				<span class="icon"><i class="fa fa-crop"></i></span>
+				<!-- 剖切功能设置 -->
+				<!-- Clipping function settings -->
+				<div id="ClipDiv" style="visibility: hidden">
+					<span class="icon"><i class="fa fa-scissors"> 剖切功能设置</i></span>
+					<li>
+						<span>X剖切</span>
+						<input class="slider" id="XRange" type="range" min="0" max="100" value="0">
+					</li>
+					<li>
+						<span>Y剖切</span>
+						<input class="slider" id="YRange" type="range" min="0" max="100" value="0">
+					</li>
+					<li>
+						<span>Z剖切</span>
+						<input class="slider" id="ZRange" type="range" min="0" max="100" value="0">
+					</li>
+				</div>
+			</div>
+			<div class="button" id="boomModel" title="爆炸模型">
+				<span class="icon"><i class="fa fa-cubes"></i></span>
+				<input class="slider" id="BoomRange" type="range" min="0" max="70" value="0"
+					style="visibility: hidden; display: inline-block; position: absolute; top: 278px; left: 60px;">
+			</div>
+			<div class="button" id="measure" title="测量">
+				<span class="icon"><i class="fa fa-arrows-h"></i></span>
+			</div>
+			<div class="button" id="roam" title="漫游设置">
+				<span class="icon"><i class="fa fa-map-o"></i></span>
+				<div id="RoamDiv" style="visibility: hidden">
+					<span class="icon"><i class="fa fa-map-o"> 漫游设置</i></span>
+					<!-- <div id="addRoamPointBtn"
+						style="margin: auto; width: 170px; height: 35px; color: white; text-align: center; line-height: 35px; background-color: rgb(0, 170, 127); border-radius: 10px;">
+						➕ 添加自定义漫游点</div> -->
+					<!-- <div id="startRoamBtn"
+						style="margin: 10px auto; width: 100px; height: 35px; color: white; text-align: center; line-height: 35px; background-color: rgb(0, 170, 127); border-radius: 10px;">
+						<span><i class="fa fa-male"></i> 开始漫游</span>
+						<div id="roamThumbnail
+					</div> -->
+				</div>
+			</div>
+			<div class="button" id="Wire" title="线框模型">
+				<span class="icon"><i class="fa fa-th"></i></span>
+				<div id="WireDiv" style="visibility: hidden">
+					<span class="icon"><i class="fa fa-th"> 线框模型</i></span>
+					<div class="wireBtn" id="addWireframesBtn">
+						附加面片线框</div>
+					<div class="wireBtn" id="WireframesBtn">
+						面片线框模型</div>
+				</div>
+			</div>
+			<div class="button" id="pictureSave" onclick="saveFile()" title="将场景保存为图片">
+				<span class="icon">
+					<i class="fa fa-save"></i>
+					<!-- <a id="downloadImg" href="" download="">下载图片</a> -->
+					<!-- <a id="down" href="" download="downImg">下载</a> -->
+				</span>
+			</div>
+			<div class="button" id="statistics" title="统计场景信息">
+				<span id="StaticBtn"
+					style="display: block; color: white; font-size: 18px; font-weight: bolder; text-align: center; line-height: 45px;">123</span>
+				<div id="StaticDiv" style="visibility: hidden">
+					<p
+						style="color: white; font-size: 27px; font-weight: bolder; line-height: 45px; text-align: center; margin: auto;">
+						123 场景信息统计</p>
+					<ul>
+						<li>
+							<span>构件数量：</span><span id="componentNum"></span>
+						</li>
+						<li>
+							<span>网格数量：</span><span id="meshNum"></span>
+						</li>
+						<li>
+							<span>顶点数量：</span><span id="vertexNum"></span>
+						</li>
+						<li>
+							<span>三角面数量：</span><span id="tri_FacetNum"></span>
+						</li>
+					</ul>
+					<p style="font-size: 14px;">Copyright © 韦春, All Rights Reserved.</p>
+				</div>
+			</div>
+		</div>
+		<!-- 构件信息面板/InfoPanel -->
+		<div id="InfoPanel" style="visibility: visible">
+			<div id=InfoPanelTitle>构件信息面板</div>
+			<div id=msg></div>
+		</div>
+		<!-- 模型显示容器/ModelDisplay Container -->
+		<div id="container"></div>
+	</div>
+	<!-- 在线加载jQuery -->
+	<!-- <script src="https://code.jquery.com/jquery-3.6.0.js"></script> -->
+	<!-- 本地加载jQuery -->
+	<script src="./js/dependencies/jquery-3.6.0.js"></script>
+	<script src="./js/dependencies/floatWindow.js"></script>
+	<script src="./js/ajax/libs/threejs/r73/three.js"></script>
+	<!-- <script src="./js/controls/LeapTwoHandControls.js"></script> -->
+	<!-- <script src="./js/controls/LeapPointerControls.js"></script> -->
+	<script src="./js/controls/OrbitControls.js"></script>
+	<script src="./js/math/Capsule.js"></script>
+	<script src="./js/funtions/SubdivisionModifier.js"></script>
+	<script src="./js/funtions/stats.min.js"></script>
+	<script src="./js/funtions/Projector.js"></script>
+	<script src="./js/funtions/Detector.js"></script>
+	<script src='./js/funtions/showAtt.js'></script>
+	<script src='./js/funtions/THREEx.WindowResize.js'></script>
+	<script type="text/html" src="./js/dependencies/RangeSlider.js"></script>
+
+	<!-- 伪加载界面 -->
+	<script src="./js/dependencies/loadingInterface.js"></script>
+
+	<script>
+
+		if (!Detector.webgl) Detector.addGetWebGLMessage();
+		var idM;
+		var container, camera, scene, renderer; //内容承载器、相机、全场景对象、渲染器
+		var orbitControls, fpsControls;
+		var oLoad; //模型加载器
+		// 光源
+		var ambient, directional; //环境光，平行光
+		var subdivs = 0;
+		var stats; //帧率板
+		var projector;
+		var explosionControl = true;
+		var wireframeVisibility = false;
+		var edgeVisibility = true;
+		var meshVisibility = true;	//面片的可见性，默认为true
+		var meshCount = 0;
+		var componentCount = 0;
+		var clipping_box_mesh;
+		var roamEnabled = false;
+
+
+
+
+
+
+
+		// 玩家的状态更新：位移、玩家的碰撞检测以及相机的位移
+		function updatePlayer(deltaTime) {
+
+			const damping = Math.exp(- 3 * deltaTime) - 1;
+			playerVelocity.addScaledVector(playerVelocity, damping);
+			const deltaPosition = playerVelocity.clone().multiplyScalar(deltaTime);	//玩家的位置增量
+			// 相机位置改变
+			camera.position.copy(playerCollider.end);
+
+
+		}
+
+		// 剖切功能
+		var ClipDiv = document.getElementById('ClipDiv');
+		document.querySelector('.fa-crop').onclick = function () {
+			document.getElementById('clipModel').classList.toggle('active');
+			if (ClipDiv.style.visibility == 'hidden') {
+				ClipDiv.style.visibility = 'visible';
+			}
+			else {
+				ClipDiv.style.visibility = 'hidden';
+			}
+		}
+
+		// 视角选择功能
+		var PerspDiv = document.getElementById('PerspDiv');
+		document.querySelector('.fa-eye').onclick = function () {
+			document.getElementById('perspective').classList.toggle('active');
+			if (PerspDiv.style.visibility == 'hidden') {
+				PerspDiv.style.visibility = 'visible';
+			}
+			else {
+				PerspDiv.style.visibility = 'hidden';
+			}
+			console.log(PerspDiv.style.visibility);
+		}
+
+		// var addWireframesBtn = document.getElementById('addWireframesBtn');
+		// addWireframesBtn.onclick = function () {
+		// 	addWireframesBtn.classList.toggle('active');
+		// 	if (wireframeVisibility == false) {
+		// 		wireframeVisibility = true;
+		// 	}
+		// 	else {
+		// 		wireframeVisibility = false;
+		// 	}
+		// 	console.log(wireframeVisibility);
+		// 	// meshWireframes(wireframeVisibility);
+		// }
+
+		// var edgeLinesBtn = document.getElementById('WireframesBtn');
+		// edgeLinesBtn.onclick = function () {
+		// 	edgeLinesBtn.classList.toggle('active');
+		// 	if (edgeVisibility == false) {
+		// 		edgeVisibility = true;
+		// 	}
+		// 	else {
+		// 		edgeVisibility = false;
+		// 	}
+		// 	console.log(edgeVisibility);
+		// 	edgeLines(wireframeVisibility);
+		// }
+
+		var magnify = document.getElementById('magnify');
+		document.querySelector('.fa-search').onclick = function () {
+			document.getElementById('magnify').classList.toggle('active');
+		}
+
+		// 点击fa-home图标，返回主视角
+		document.querySelector('.fa-home').onclick = function () {
+			orbitControls.reset();
+		}
+
+		// 场景信息统计功能
+		var StaticDiv = document.getElementById('StaticDiv');
+		document.getElementById('StaticBtn').onclick = function () {
+			document.getElementById('statistics').classList.toggle('active');
+			if (StaticDiv.style.visibility == 'hidden') {
+				StaticDiv.style.visibility = 'visible';
+			}
+			else {
+				StaticDiv.style.visibility = 'hidden';
+			}
+		}
+
+
+		// 时钟
+		const clock = new THREE.Clock();
+		// start end radius
+		const playerCollider = new THREE.Capsule(new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 1800, 0), 0.35);
+		// 玩家速度的方向
+		const playerVelocity = new THREE.Vector3();
+		// 玩家的朝向
+		const playerDirection = new THREE.Vector3();
+
+		const keyStates = {};
+
+		// 添加按键按下事件监听器
+		document.addEventListener('keydown', (event) => {
+
+			keyStates[event.code] = true;
+
+		});
+
+		// 添加按键抬起事件监听器
+		document.addEventListener('keyup', (event) => {
+
+			keyStates[event.code] = false;
+
+		});
+
+
+		var InfoPanel = document.getElementById('.InfoPanel');
+		var RoamDiv = document.getElementById('RoamDiv');
+		document.querySelector('.fa-map-o').onclick = function () {
+			document.getElementById('roam').classList.toggle('active');
+			document.querySelector('.description-event').classList.toggle('active');
+			if (RoamDiv.style.visibility == 'hidden') {
+				RoamDiv.style.visibility = 'visible';
+				// InfoPanel.style.visibility = 'hidden';
+				orbitControls.enabled = false;
+				document.body.requestPointerLock();
+				removeInfoListener();
+			}
+			else {
+				RoamDiv.style.visibility = 'hidden';
+				// InfoPanel.style.visibility = 'visible';
+
+				orbitControls.enabled = true;
+				addInfoListener();
+			}
+			if (InfoPanel.style.visibility == 'hidden') {
+				InfoPanel.style.visibility = 'visible';
+			}
+			else {
+				InfoPanel.style.visibility = 'hidden';
+			}
+		}
+		// 添加鼠标移动事件监听器：第一人称 视角的移动
+		document.body.addEventListener('mousemove', (event) => {
+
+			if (document.pointerLockElement === document.body) {
+
+				camera.rotation.y -= event.movementX / 500;
+				camera.rotation.x -= event.movementY / 500;
+
+			}
+
+		});
+		$(document).keydown(function (event) {
+			if (event.keyCode == 27) {
+				if (RoamDiv.style.visibility == 'visible') {
+					document.getElementById('roam').classList.toggle('active');
+					document.querySelector('.description-event').classList.toggle('active');
+					RoamDiv.style.visibility = 'hidden';
+					orbitControls.enabled = true;
+					addInfoListener();
+				}
+			}
+		});
+
+		function updatePlayer(deltaTime) {
+			const damping = Math.exp(- 5 * deltaTime) - 1;	//设置移动阻尼（代表阻尼的数量为必须为负数，数值上越小，松开移动键之后的阻尼越大）
+			playerVelocity.addScaledVector(playerVelocity, damping);	//速度方向增加阻尼
+			const deltaPosition = playerVelocity.clone().multiplyScalar(deltaTime);	//玩家的位置增量
+			playerCollider.translate(deltaPosition);	//玩家碰撞器位移增量为deltaPosition
+			camera.position.copy(playerCollider.end);
+		}
+
+		// 玩家进行前后运动时的朝向
+		function getForwardVector() {
+
+			camera.getWorldDirection(playerDirection);
+			// playerDirection.y = 0;
+			// 归一
+			playerDirection.normalize();
+
+			return playerDirection;
+
+		}
+
+		// 玩家进行左右运动时的朝向
+		function getSideVector() {
+
+			camera.getWorldDirection(playerDirection);
+			playerDirection.y = 0;
+			playerDirection.normalize();
+			playerDirection.cross(camera.up);	//取得摄像机的正方向的垂线方向的向量
+
+			return playerDirection;
+
+		}
+
+		// 控制：鼠标控制、键盘控制
+		function controls(deltaTime) {
+
+			const speed = 10000;
+
+			if (keyStates['KeyW']) {
+
+				playerVelocity.add(getForwardVector().multiplyScalar(speed * deltaTime));
+
+			}
+
+			if (keyStates['KeyS']) {
+
+				playerVelocity.add(getForwardVector().multiplyScalar(- speed * deltaTime));
+
+			}
+
+			if (keyStates['KeyA']) {
+
+				playerVelocity.add(getSideVector().multiplyScalar(- speed * deltaTime));
+
+			}
+
+			if (keyStates['KeyD']) {
+
+				playerVelocity.add(getSideVector().multiplyScalar(speed * deltaTime));
+
+			}
+
+			// 相机上升
+			if (keyStates['KeyR']) {
+
+				playerVelocity.y = 500;
+
+			}
+			// 相机下降
+			if (keyStates['KeyF']) {
+
+				playerVelocity.y = -500;
+
+			}
+
+		}
+
+		var BoomRange = document.getElementById('BoomRange');
+		document.querySelector('.fa-cubes').onclick = function () {
+			document.getElementById('boomModel').classList.toggle('active');
+			BoomRange.value = 0;
+			if (BoomRange.style.visibility == 'hidden') {
+				BoomRange.style.visibility = 'visible';
+			}
+			else {
+				BoomRange.style.visibility = 'hidden';
+			}
+		}
+
+		var WireDiv = document.getElementById('WireDiv');
+		document.querySelector('.fa-th').onclick = function () {
+			document.getElementById('Wire').classList.toggle('active');
+			if (WireDiv.style.visibility == 'hidden') {
+				WireDiv.style.visibility = 'visible';
+			}
+			else {
+				WireDiv.style.visibility = 'hidden';
+			}
+		}
+
+		document.querySelector('.fa-arrows-h').onclick = function () {
+			document.getElementById('measure').classList.toggle('active');
+		}
+
+		var clkBtn = document.querySelector('.description-event');
+		clkBtn.onclick = function () {
+			if ($('.description-event').hasClass('active')) {
+				$('.description-event').removeClass('active');
+				removeInfoListener();
+			} else {
+				$('.description-event').addClass('active');
+				addInfoListener();
+			}
+		};
+
+		init();
+
+		animate();
+
+
+
+
+
+
+		// 保存webgl内容
+		function saveFile() {
+			// 创建一个超链接元素，用来下载保存数据的文件
+			// var link = document.getElementById('downloadImg');
+			var link = document.createElement('a');
+			// 通过超链接herf属性，设置要保存到文件中的数据
+			var canvas = renderer.domElement;//获取canvas对象
+			link.href = canvas.toDataURL("image/png");
+			// console.log(link.href);
+			link.download = 'scene.png'; //下载文件名
+			link.click(); //js代码触发超链接元素a的鼠标点击事件，开始下载文件到本地
+		}
+
+
+		function init() {
+			/* 初始化THREE变量/Initialize THREE variable */
+			scene = new THREE.Scene();
+			projector = new THREE.Projector();
+
+
+			const localPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 1000);
+
+			/* 创建渲染器/Create renderer */
+			renderer = new THREE.WebGLRenderer({
+				// 如果想保存three.js canvas画布上的信息，注意设置preserveDrawingBuffer = true。此方法需要占用一定内存。
+				preserveDrawingBuffer: true,
+				antialias: true,
+				alpha: true,
+				localClippingEnabled: true
+			}); //抗锯齿开启，
+			renderer.setPixelRatio(window.devicePixelRatio);
+			renderer.setSize(window.innerWidth, window.innerHeight);
+			renderer.setClearColor(0xb9d3ff, 1); //设置背景颜色
+
+			renderer.localClippingEnabled = true; //设置为局部（指物体）可裁剪
+
+			container = document.getElementById('container');
+			container.appendChild(renderer.domElement);
+
+			//实时帧率面板：用于测试web应用浏览BIM模型时的流畅度
+			FPS_Panel();
+
+			// 加载相机初始化函数
+			initCamera();
+
+			orbitControl();
+
+
+
+			// 加载并平滑网格/Load the model and smooth meshes
+			// 创建模型加载器并加载模型/Create oLoad and load the model
+			oLoad = new THREE.ObjectLoader();
+			oLoad.load('models/villa3.rvt.js', function (object) {
+				scene = object;
+				// scene.add(object);
+				object.children.forEach(function (obj3d) {
+					if (obj3d instanceof THREE.Object3D) {
+						componentCount++;
+						obj3d.children.forEach(function (mesh) {
+							// 平滑地形
+							if (mesh instanceof THREE.Mesh) {
+								// 地形平滑
+								if (mesh.name.indexOf('TopographySurface') != -1) {
+									console.log('got a topo');
+									var finalGeo = mesh.geometry;
+									finalGeo.mergeVertices();
+									var modifier = new THREE.SubdivisionModifier(subdivs);
+									modifier.modify(finalGeo);
+								}
+								meshCount++;
+								// 设置网格面片的材质为双面 | side = 0：只显示正面材质，side = 1：只显示反面材质，side = 2：双面显示材质
+								mesh.material.side = 2;
+								// 材质visible属性决定网格的可见性 | true为可见，false为不可见
+								mesh.material.visible = meshVisibility;
+
+								mesh.material.shininess = 0;
+
+								mesh.material.clippingPlanes = localPlane;
+
+								// mesh.material.clipShadows = true;
+
+								mesh.material.flatShading = THREE.SmoothingShading;
+
+								if (edgeVisibility == true) {
+									// 添加边缘线的重要语句，只有当两个mesh所在平面之间的夹角大于89°时才添加轮廓线
+									let geoEdge = new THREE.EdgesGeometry(mesh.geometry, 44);
+									// 轮廓线材质属性
+									let edgeMtl = new THREE.LineBasicMaterial({
+										// 轮廓线颜色
+										color: 0x333333,
+										// 轮廓线粗细
+										linewidth: 1.0,
+										// 轮廓线是否受到全局雾化效果影响
+										fog: false
+										// clippingPlanes: [globalPlane]
+									});
+									let geoLine = new THREE.LineSegments(geoEdge, edgeMtl);
+									mesh.add(geoLine);
+								}
+								if (wireframeVisibility == true) {
+									var wireframeMaterial = new THREE.MeshBasicMaterial({
+										color: 0x000000,
+										wireframe: true,
+										wireframeLinewidth: 1,
+									});
+									var wireframe = new THREE.Mesh(mesh.geometry, wireframeMaterial);
+									// 给当前正在遍历的mesh添加上线框
+									mesh.add(wireframe);
+								}
+							}
+
+						});
+					}
+				});
+				console.log(meshCount);
+				console.log(componentCount);
+				document.getElementById('meshNum').innerHTML = meshCount;
+				document.getElementById('componentNum').innerHTML = componentCount;
+
+				var Box = new THREE.Box3().setFromObject(object);
+				console.log(Box);
+
+				explosion(object, explosionControl);
+
+				// modelClipping_1(object, clipping_box_mesh);
+
+				// 初始化光源
+				initLights();
+
+				// 实时投影开启：可以随着平行光位置和角度改变
+				// RealtimeProjection();
+				// edgeLines(edgeVisibility);
+
+				// console.log('三角网格可见性', wireframeVisibility);
+				// meshWireframes(object, wireframeVisibility);
+
+				var Box = new THREE.Box3().setFromObject(object);
+				console.log(Box);
+
+				// 渲染之前最后的功能函数加载/The final function before rendering
+				computeNormalsAndFaces();
+				THREEx.WindowResize(renderer, camera);
+				console.log('加载完成！');
+				$('#introContainer').fadeOut("slow", function () {
+					render()
+					$('#mainContainer').fadeIn("slow", function () { });
+				});
+
+			}
+
+			);
+
+			addInfoListener();
+		}
+
+
+		// 显示所有
+		function displayAll() {
+			scene.traverse(function (mesh) {
+				if (mesh instanceof THREE.Mesh) {
+					mesh.material.visibility = true;
+				}
+			});
+		}
+
+		// 半透明构件
+		function translucentComponent() {
+
+		}
+
+		function meshWireframes(object, wireframeVisibility) {
+			object.traverse(function (mesh) {
+				if (mesh instanceof THREE.Mesh) {
+					// 附加网格三角面片线框
+					if (wireframeVisibility == true) {
+						var wireframeMaterial = new THREE.MeshBasicMaterial({
+							color: 0x000000,
+							wireframe: true,
+							wireframeLinewidth: 1,
+						});
+						var wireframe = new THREE.Mesh(mesh.geometry, wireframeMaterial);
+						// 给当前正在遍历的mesh添加上线框
+						mesh.add(wireframe);
+					}
+				}
+			});
+		}
+
+		// 爆炸模型
+		function explosion(object, explosionControl) {
+			if (explosionControl == true) {
+				// 获取模型的包围盒
+				var modelBox3 = new THREE.Box3();
+				// var componentBox3 = new THREE.Box3();
+				var meshBox3 = new THREE.Box3();
+				modelBox3.setFromObject(object);
+				// 计算模型的中心点坐标，这个为爆炸中心
+				var modelWorldPs = new THREE.Vector3().addVectors(modelBox3.max, modelBox3.min).multiplyScalar(0.5);
+				// 遍历组件
+				object.traverse(function (mesh) {
+					if (mesh instanceof THREE.Mesh) {
+						meshBox3.setFromObject(mesh);
+						//获取每个组件的中心点，爆炸方向为爆炸中心点指向组件中心点
+						var CompWorldPs = new THREE.Vector3().addVectors(meshBox3.max, meshBox3.min).multiplyScalar(0.5);
+						if (isNaN(CompWorldPs.x)) return;
+						//计算爆炸方向
+						mesh.worldDir = new THREE.Vector3().subVectors(CompWorldPs, modelWorldPs).normalize();
+						//保存初始坐标
+						mesh.oldPs = mesh.getWorldPosition(new THREE.Vector3());
+					}
+				});
+
+				document.querySelector("#BoomRange").addEventListener('input', function (evt) {
+					applyScalar(this.value * 500, object)
+				})
+			}
+		}
+		// 爆炸计算
+		function applyScalar(scalar, object) {
+			object.traverse(function (obj3d) {
+				if (!obj3d instanceof THREE.Mesh || !obj3d.worldDir) return;
+				//爆炸公式
+				obj3d.position.copy(new THREE.Vector3().copy(obj3d.oldPs).add(new THREE.Vector3().copy(obj3d.worldDir).multiplyScalar(scalar)));
+			});
+		}
+		// 创建天空盒/Create the skybox
+		function initSkybox() {
+			var urlPrefix = '/rvt3js/img/sky/',
+				urls = [
+					urlPrefix + 'posx.jpg',
+					urlPrefix + 'negx.jpg',
+					urlPrefix + 'negz.jpg',
+					urlPrefix + 'posz.jpg',
+					urlPrefix + 'posy.jpg',
+					urlPrefix + 'negy.jpg'
+				],
+				textureCube = THREE.ImageUtils.loadTextureCube(urls),
+				shader = THREE.ShaderLib['cube'],
+				uniforms = THREE.UniformsUtils.clone(shader.uniforms);
+			uniforms['tCube'].value = textureCube;
+			var skyMaterial = new THREE.ShaderMaterial({
+				fragmentShader: shader.fragmentShader,
+				vertexShader: shader.vertexShader,
+				uniforms: uniforms,
+				depthWrite: false,
+				side: THREE.DoubleSide
+			}),
+				skyboxMesh = new THREE.Mesh(new THREE.BoxGeometry(100000, 100000, 100000, 1, 1, 1), skyMaterial);
+			scene.add(skyboxMesh);
+		}
+		// 环境光/灯光设置
+		function initLights() {
+			// 环境光设置
+			ambient = new THREE.AmbientLight(0xC0C0C0); //创建环境光
+			scene.add(ambient); //将环境光添加到scene中
+			// 平行光源的属性设置
+			directional = new THREE.DirectionalLight(0xffffff, 1.0); //光源颜色为0xffffff（白色），光强为1.0
+			directional.position.set(1, 0.5, -2); //平行光源位置的设置，对应x,y,z轴上的位置
+			directional.castShadow = true; //开启或关闭对应光源的投影
+			// 设置阴影贴图的质量(精细度)
+			directional.shadowMapWidth = 1024 * 15;
+			directional.shadowMapHeight = 1024 * 15;
+			var d = 10000;
+			// 阴影的max显示范围
+			directional.shadowCameraLeft = -d * 16;
+			directional.shadowCameraRight = d * 16;
+			directional.shadowCameraTop = d * 16;
+			directional.shadowCameraBottom = -d * 16;
+			directional.shadowCameraNear = 0;
+			directional.shadowCameraFar = d * 8;
+			scene.add(directional);
+		}
+		// 创建相机/Create camera
+		function initCamera() {
+			// PerspectiveCamera：透视相机
+			// PerspectiveCamera(fov, aspect, near, far)
+			// Fov – 相机的视锥体的垂直视野角
+			// Aspect – 相机视锥体的长宽比
+			// Near – 相机视锥体的近平面
+			// Far – 相机视锥体的远平面
+			camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 200, 200000);
+			// 主相机位置的设置，对应为x,y,z轴
+			// 屏幕中心向右延伸为X轴正方向
+			// 屏幕中心向上延伸为Y轴正方向
+			// 屏幕中心向屏幕外部延伸为Z轴正方向
+			camera.position.set(-15000, 15000, -15000); // x, y, z
+			camera.lookAt(new THREE.Vector3(0, 0, 0));	// 默认值
+
+			camera.rotation.order = 'YXZ';
+
+		}
+		// 实时帧率统计窗
+		function FPS_Panel() {
+			stats = new Stats();
+			// 在stats元素结点之后添加domElement结点
+			container.appendChild(stats.domElement);
+			// 设置帧率统计窗的绝对位置属性（相对于整个浏览器显示窗口的绝对位置），用以之后定位top与right的距离
+			stats.domElement.style.position = 'absolute';
+			// 设置帧率窗在用户界面的位置
+			stats.domElement.style.top = '20px';
+			stats.domElement.style.left = '20px';
+			stats.domElement.style.width = '80px';
+			//设置帧率（FPS）显示器的zIndex属性，使之不被高zIndex值的控件所覆盖
+			stats.domElement.style.zIndex = 10;
+			stats.domElement.style.opacity = 0.5;
+			stats.domElement.style.boxShadow = "-4px 6px 3px #343434";
+		}
+		// 实时投影:可根据平行光位置改变
+		function RealtimeProjection() {
+			// 设置产生投影的对象和接收投影的对象并开启投影与接收
+			scene.traverse(function (mesh) {
+				if (mesh instanceof THREE.Mesh) {
+					mesh.castShadow = true; //面片投影开启
+					mesh.receiveShadow = true; //面片接收投影开启
+				}
+			});
+			scene.receiveShadow = true; //场景接收投影开启
+			renderer.shadowMapEnabled = true; //开启渲染器的阴影贴图功能 | 此功能必须开启
+		}
+
+		// 场景刷新函数
+		function animate() {
+
+			// 时间间隔
+			const deltaTime = Math.min(0.1, clock.getDelta());
+
+			// 处在非漫游状态时，禁止键盘控制漫游动作的更新
+			if (orbitControls.enabled == false) {
+				// 控制函数
+				controls(deltaTime);
+
+				// 更新玩家状态
+				updatePlayer(deltaTime);
+			}
+
+			// 告诉浏览器——你希望执行一个动画，
+			// 并且要求浏览器在下次重绘之前调用指定的回调函数（这里指animate()）更新动画。
+			// 该方法需要传入一个回调函数（这里指animate()）作为参数，
+			// 该回调函数（这里指animate()）会在浏览器下一次重绘之前执行。
+			idM = requestAnimationFrame(animate);
+			// orbitControls.update(); //控制的实时更新，注释掉orbitControls的刷新，以免漫游时与其冲突，但注释掉并不妨碍orbitControls对场景相机的控制，只是无法实现对控制器的惯性设置
+			stats.update(); //帧率的实时更新
+			render();
+		}
+
+		// 开启渲染器/Open the renderer
+		function render() {
+			renderer.clear();
+			renderer.render(scene, camera);
+		}
+
+		// 移除构件信息监听器函数
+		function removeInfoListener() {
+			document.removeEventListener('click', clickHandler, false);
+		}
+
+		function addInfoListener() {
+			document.addEventListener('click', clickHandler, false);
+		}
+
+		function viewChange() {
+
+		}
+
+		// 鼠标操作/Mouse control
+		function orbitControl() {
+			orbitControls = new THREE.OrbitControls(camera, renderer.domElement);
+
+
+			// 控制器惯性设置【该设置生效的前提是场景刷新函数里要有控制器的更新函数 "update()" 调用】
+			orbitControls.enableDamping = false;			// 控制器的旋转和拖拽动作惯性，默认值为true
+			orbitControls.dampingFactor = 0.2; 			// 惯性阻尼系数
+
+			// 缩放相关属性
+			orbitControls.enableZoom = true; 			// 鼠标中键控制缩放功能，默认值为true
+			orbitControls.zoomSpeed = 1.0; 				// 鼠标中键缩放速度
+
+			// 相机观察距离最值的设置
+			orbitControls.minDistance = 10; 			// 设置相机距离焦点的最小距离
+			orbitControls.maxDistance = 100000; 		// 相机距离焦点的最大距离————用以控制
+
+			orbitControls.enableRotate = true;			// 相机绕焦点旋转操作，默认值为true
+			orbitControls.rotateSpeed = 1.0;			// 默认旋转速度为1.0
+
+			// 鼠标控制相机平移设置
+			orbitControls.enablePan = true;				// 鼠标控制相机平移操作，默认值为true
+			orbitControls.panSpeed = 1.0;				// 默认鼠标控制相机平移速度为1.0
+			orbitControls.screenSpacePanning = false;	// 定义当平移的时候摄像机的位置将如何移动。如果为true，摄像机将在屏幕空间内平移。 否则，摄像机将在与摄像机向上方向垂直的平面中平移。其默认值为false。
+
+			// 键盘控制相机平移设置
+			orbitControls.enableKeys = true;			// 键盘控制相机平移操作，默认值为true
+			orbitControls.keyPanSpeed = 7.0;			// 默认键盘控制相机平移速度为7.0
+			// 键盘控制相机平移时，默认为 ↑ ↓ ← → 键
+			orbitControls.keys = {
+				LEFT: 37, // ↑ 键
+				UP: 38, // ↓ 键
+				RIGHT: 39, // ← 键
+				BOTTOM: 40 // → 键
+			}
+
+			orbitControls.autoRotate = false;
+			orbitControls.autoRotateSpeed = 2.0;
+
+			orbitControls.enabled = true;				// 是否开启当前控制器，默认值是true，如果设置为false，将无法通过操作修改相机
+
+		}
+
+
+	</script>
+</body>
+
+</html>

@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+	<title>环形节剖切 - 带封口</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	<link type="text/css" rel="stylesheet" href="main.css">
+</head>
+
+<body>
+
+	<div id="info"><a href="https://threejs.org" target="_blank" rel="noopener">three.js</a> - 带有裁切平面和模板的立体几何体</div>
+
+	<script type="module">
+		import * as THREE from './build/three.module.js';
+		import { OrbitControls } from './jsm/controls/OrbitControls.js';
+		import { GUI } from './jsm/libs/dat.gui.module.js';
+		import Stats from './jsm/libs/stats.module.js';
+
+		// 创建相机、创景、渲染器、物体、性能面板
+		let camera, scene, renderer, object, stats;
+		// 创建平面组（数组类型）、平面（数组类型）、平面辅助体
+		let planes, planeObjects, planeHelpers;
+		// 时钟（用于场景刷新）
+		let clock;
+
+		// GUI面板的参数
+		const params = {
+
+			// 开启物体自旋转动画；其他平面剖切的可执行动作：剖切数值，是否反转剖切，显是否示剖切平面
+			animate: true,
+			planeX: {
+
+				constant: 0,
+				negated: false,
+				displayHelper: false
+
+			},
+			planeY: {
+
+				constant: 0,
+				negated: false,
+				displayHelper: false
+
+			},
+			planeZ: {
+
+				constant: 0,
+				negated: false,
+				displayHelper: false
+
+			}
+
+
+		};
+
+		// 初始化
+		init();
+		// 场景刷新
+		animate();
+
+		// 创建组成平面的组（一个平面由两个面组成，分别是前平面和后平面），单个平面只能在正面观察的时候可以被看见，从反面观察的时候看不到平面
+		function createPlaneStencilGroup(geometry, plane, renderOrder) {
+
+			// 创建组合对象
+			const group = new THREE.Group();
+			// 平面的材质
+			const baseMat = new THREE.MeshBasicMaterial();
+			// 平面材质的属性设置
+			baseMat.depthWrite = false;
+			baseMat.depthTest = false;
+			baseMat.colorWrite = false;
+			baseMat.stencilWrite = true;
+			baseMat.stencilFunc = THREE.AlwaysStencilFunc;
+
+			// 平面的背面
+			// 克隆面片材质为背面材质
+			const mat0 = baseMat.clone();
+			// 背面材质只显示背面
+			mat0.side = THREE.BackSide;
+			// 设置用于裁切物体平面的背面材质的裁切面
+			mat0.clippingPlanes = [plane];
+			mat0.stencilFail = THREE.IncrementWrapStencilOp;
+			mat0.stencilZFail = THREE.IncrementWrapStencilOp;
+			mat0.stencilZPass = THREE.IncrementWrapStencilOp;
+
+			// 创建并定义承载背面材质的面片mesh
+			const mesh0 = new THREE.Mesh(geometry, mat0);	//面片通过已有的几何体和材质进行创建
+			mesh0.renderOrder = renderOrder;
+			group.add(mesh0);
+
+			// 平面的正面
+			// 克隆面片材质为正面材质
+			const mat1 = baseMat.clone();
+			// 正面材质只显示正面
+			mat1.side = THREE.FrontSide;
+			// 设置用于裁切物体平面的背面材质的裁切面，正反面都要设置是因为裁切面有翻转裁切的动作
+			mat1.clippingPlanes = [plane];
+			mat1.stencilFail = THREE.DecrementWrapStencilOp;
+			mat1.stencilZFail = THREE.DecrementWrapStencilOp;
+			mat1.stencilZPass = THREE.DecrementWrapStencilOp;
+
+			const mesh1 = new THREE.Mesh(geometry, mat1);
+			mesh1.renderOrder = renderOrder;
+
+			group.add(mesh1);
+
+			return group;
+
+		}
+
+		function init() {
+
+			// 时钟（用于之后的物体（环形节）的自旋）
+			clock = new THREE.Clock();
+
+			// 创建场景
+			scene = new THREE.Scene();
+
+			// 创建并定义透视相机
+			camera = new THREE.PerspectiveCamera(36, window.innerWidth / window.innerHeight, 1, 100);
+			// 定义透视相机位置
+			camera.position.set(2, 2, 2);
+
+			// 向场景中添加环境光
+			scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+
+			// 创建并定义平行光
+			const dirLight = new THREE.DirectionalLight(0xffffff, 1);	//定义平行光（光源颜色和光强）
+			dirLight.position.set(5, 10, 7.5);	//平行光位置的设置
+			dirLight.castShadow = true;	//光源开启投影功能
+			// 投射的阴影的最大可视范围
+			dirLight.shadow.camera.right = 2;	
+			dirLight.shadow.camera.left = - 2;
+			dirLight.shadow.camera.top = 2;
+			dirLight.shadow.camera.bottom = - 2;
+
+			// 投射的阴影的像素质量
+			dirLight.shadow.mapSize.width = 1024;
+			dirLight.shadow.mapSize.height = 1024;
+			// 将平行光添加进场景中
+			scene.add(dirLight);
+
+			// 创建平面
+			planes = [
+				new THREE.Plane(new THREE.Vector3(- 1, 0, 0), 0),
+				new THREE.Plane(new THREE.Vector3(0, - 1, 0), 0),
+				new THREE.Plane(new THREE.Vector3(0, 0, - 1), 0)
+			];
+
+			// 给planes平面数组中的每一个平面添加planeHelpers
+			planeHelpers = planes.map(p => new THREE.PlaneHelper(p, 5, 0xffffff));
+			// 将每一个planeHelper设置为可见，并添加进场景
+			planeHelpers.forEach(ph => {
+				ph.visible = false;
+				scene.add(ph);
+			});
+
+			// 创建环形节几何体
+			const geometry = new THREE.TorusKnotGeometry(0.4, 0.15, 220, 60);
+			object = new THREE.Group();
+			scene.add(object);
+
+			// 平面物体
+			planeObjects = [];
+			
+			// PlaneGeometry(width : Float, height : Float, widthSegments : Integer, heightSegments : Integer)
+			// width 宽度 — Width along the X axis.Default is 1.
+			// height 高度 — Height along the Y axis.Default is 1.
+			// widthSegments(optional) 宽度分段（可选） — Optional.Default is 1.
+			// heightSegments(optional) 高度分段（可选） — Optional.Default is 1.
+			const planeGeom = new THREE.PlaneGeometry(10, 10);
+
+			for (let i = 0; i < 3; i++) {
+
+				const poGroup = new THREE.Group();
+				const plane = planes[i];
+
+				const stencilGroup = createPlaneStencilGroup(geometry, plane, i + 1);
+
+				// 平面被其他的剪切平面所剪切
+				const planeMat =
+					new THREE.MeshStandardMaterial({
+
+						// 剖切面的颜色
+						color: 0xE91E63,
+						// 剖切面的金属光泽度
+						metalness: 0.1,
+						// 剖切面的粗糙度
+						roughness: 0.75,
+						// 剖切面的剔除
+						clippingPlanes: planes.filter(p => p !== plane),
+
+						// 深度写入
+						stencilWrite: true,
+						stencilRef: 0,
+						stencilFunc: THREE.NotEqualStencilFunc,
+						stencilFail: THREE.ReplaceStencilOp,
+						stencilZFail: THREE.ReplaceStencilOp,
+						stencilZPass: THREE.ReplaceStencilOp,
+
+					});
+				const po = new THREE.Mesh(planeGeom, planeMat);
+				po.onAfterRender = function (renderer) {
+
+					renderer.clearStencil();
+
+				};
+
+				po.renderOrder = i + 1.1;
+
+				object.add(stencilGroup);
+				poGroup.add(po);
+				planeObjects.push(po);
+				scene.add(poGroup);
+
+			}
+
+			// 裁切体的材质
+			const material = new THREE.MeshStandardMaterial({
+
+				// 材质颜色
+				color: 0xFFC107,
+				// 金属光泽度
+				metalness: 0.1,
+				// 粗糙度
+				roughness: 0.75,
+				// 裁切该材质的平面
+				clippingPlanes: planes,
+				// 投影开启裁切
+				clipShadows: true,
+				// 裁切体的阴影的材质为双面
+				shadowSide: THREE.DoubleSide,
+
+			});
+
+			// 添加颜色
+			const clippedColorFront = new THREE.Mesh(geometry, material);	// 几何体被裁切出的部分
+			clippedColorFront.castShadow = true;	// 被裁切出的部分开启投影
+			clippedColorFront.renderOrder = 6;	// 调整渲染顺序，以免被场景中其他物体遮挡
+			object.add(clippedColorFront);	// 将裁切体添加到主物体上
+
+
+			// mesh的创建默认是平行于xOy平面
+			const ground = new THREE.Mesh(
+				// PlaneGeometry(width : Float, height : Float, widthSegments : Integer, heightSegments : Integer)
+				// width 宽度 — Width along the X axis.Default is 1.
+				// height 高度 — Height along the Y axis.Default is 1.
+				// widthSegments(optional) 宽度分段（可选） — Optional.Default is 1.
+				// heightSegments(optional) 高度分段（可选） — Optional.Default is 1.
+				new THREE.PlaneGeometry(9, 9, 1, 1),
+				// 投射到地面的阴影材质
+				new THREE.ShadowMaterial({ color: 0, opacity: 0.25, side: THREE.DoubleSide })
+			);
+
+			// 调整ground的位置
+			ground.rotation.x = - Math.PI / 2; // 从xOy平面旋转成xOz平面
+			ground.position.y = - 1;	// 调整地面的高度
+			ground.receiveShadow = true;	//开启地面的阴影接收
+			scene.add(ground);	// 将地面添加至场景
+
+			// 创建性能面板
+			stats = new Stats();
+			// 向body标签添加最后一个子节点（stats.dom）
+			document.body.appendChild(stats.dom);
+
+			// 渲染器的相关设置
+			// 渲染器开启抗锯齿
+			renderer = new THREE.WebGLRenderer({ antialias: true });
+			// 渲染器显示场景中的阴影
+			renderer.shadowMap.enabled = true;
+			// 渲染器自适应设备像素比例
+			renderer.setPixelRatio(window.devicePixelRatio);
+			// 渲染器匹配当前窗口尺寸
+			renderer.setSize(window.innerWidth, window.innerHeight);
+			// 设置渲染器的背景颜色
+			renderer.setClearColor(0x263238);
+			// 给浏览器窗口添加监听（窗口尺寸是否发生变化）事件
+			window.addEventListener('resize', onWindowResize);
+			// 向body标签添加最后一个子结点（renderer.doElement）
+			document.body.appendChild(renderer.domElement);
+			// 定义渲染器是否考虑对象级剪切平面，默认为false
+			renderer.localClippingEnabled = true;
+
+			// 控件
+			const controls = new OrbitControls(camera, renderer.domElement);
+			// 相机观察距离的最值
+			controls.minDistance = 2;
+			controls.maxDistance = 20;
+			// 控件的更新
+			controls.update();
+
+			// 图形用户界面
+			const gui = new GUI();
+			// 将参数数组中animate属性作为复选框类型添加到图形用户界面
+			gui.add(params, 'animate');
+
+			// 将参数数组中planeX属性作为折叠项类型添加到图形用户界面
+			const planeX = gui.addFolder('planeX');
+			// 将参数数组中planeX属性的displayHelper和negated属性作为复选框类型，constant属性作为slider类型添加到图形用户界面
+			planeX.add(params.planeX, 'displayHelper').onChange(v => planeHelpers[0].visible = v);
+			planeX.add(params.planeX, 'constant').min(- 1).max(1).onChange(d => planes[0].constant = d);
+			planeX.add(params.planeX, 'negated').onChange(() => {
+
+				planes[0].negate();
+				params.planeX.constant = planes[0].constant;
+
+			});
+			planeX.open();	// 打开折叠项
+
+			// 将参数数组中planeY属性作为折叠项类型添加到图形用户界面
+			const planeY = gui.addFolder('planeY');
+			// 将参数数组中planeY属性的displayHelper和negated属性作为复选框类型，constant属性作为slider类型添加到图形用户界面
+			planeY.add(params.planeY, 'displayHelper').onChange(v => planeHelpers[1].visible = v);
+			planeY.add(params.planeY, 'constant').min(- 1).max(1).onChange(d => planes[1].constant = d);
+			planeY.add(params.planeY, 'negated').onChange(() => {
+
+				planes[1].negate();
+				// 将控制面板参数的constant值传给平面的constant属性
+				params.planeY.constant = planes[1].constant;
+
+			});
+			planeY.open();	// 打开折叠项
+
+			// 将参数数组中planeZ属性作为折叠项类型添加到图形用户界面
+			const planeZ = gui.addFolder('planeZ');
+			// 将参数数组中planeZ属性的displayHelper和negated属性作为复选框类型，constant属性作为slider类型添加到图形用户界面
+			planeZ.add(params.planeZ, 'displayHelper').onChange(v => planeHelpers[2].visible = v);
+			planeZ.add(params.planeZ, 'constant').min(- 1).max(1).onChange(d => planes[2].constant = d);
+			planeZ.add(params.planeZ, 'negated').onChange(() => {
+
+				planes[2].negate();
+				// 将控制面板参数的constant值传给平面的constant属性
+				params.planeZ.constant = planes[2].constant;
+
+			});
+			planeZ.open();	// 打开折叠项
+
+		}
+
+		// 用于适应浏览器窗口的大小调整
+		function onWindowResize() {
+
+			camera.aspect = window.innerWidth / window.innerHeight;
+			camera.updateProjectionMatrix();
+			renderer.setSize(window.innerWidth, window.innerHeight);
+
+		}
+
+		function animate() {
+
+			// 获取时钟间隔（用于物体状态的更新（环形节的自旋））
+			const delta = clock.getDelta();
+
+			// 告诉浏览器——你希望执行一个动画，
+			// 并且要求浏览器在下次重绘之前调用指定的回调函数（这里指animate()）更新动画。
+			// 该方法需要传入一个回调函数（这里指animate()）作为参数，
+			// 该回调函数（这里指animate()）会在浏览器下一次重绘之前执行。
+			requestAnimationFrame(animate);
+
+			// 如果控制面板参数中的animate属性值为true，物体（环形节）将会随着场景的刷新而运动（同时绕X和Y周自旋）
+			if (params.animate) {
+
+				object.rotation.x += delta * 0.5;
+				object.rotation.y += delta * 0.2;
+
+			}
+
+
+			// 作用？
+			for (let i = 0; i < planeObjects.length; i++) {
+
+				const plane = planes[i];
+				const po = planeObjects[i];
+				plane.coplanarPoint(po.position);
+				po.lookAt(
+					po.position.x - plane.normal.x,
+					po.position.y - plane.normal.y,
+					po.position.z - plane.normal.z,
+				);
+
+			}
+
+			// 加载性能开始统计
+			stats.begin();
+			// 渲染器渲染场景
+			renderer.render(scene, camera);
+			// 加载性能结束统计
+			stats.end();
+
+		}
+
+	</script>
+
+</body>
+
+</html>

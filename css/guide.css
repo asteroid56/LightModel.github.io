@@ -1,0 +1,93 @@
+/* @import url('https://fonts.googleapis.com/css?famliy=Poppins:100,200,300,400,500,600,700'); */
+
+body {
+	margin: 0;
+	padding: 0;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+
+ul {
+	position: fixed;
+	bottom: 0px;
+	padding: 0;
+	display: flex;
+}
+
+ul #guideHover {
+	position: relative;
+	list-style: none;
+	width: 44px;
+	height: 44px;
+	background: transparent;
+	/* margin: 0 20px; */
+	border-radius: 50%;
+	transition: 0.5s;
+	cursor: pointer;
+}
+
+ul #guideHover #guideIcon {
+	position: absolute;
+	left: 0.5px;
+}
+
+ul #guideHover #guideIconPanel {
+	position: absolute;
+	top: -3px;
+	left: -3px;
+}
+
+ul #guideHover:hover {
+	/* background: #86ff3b; */
+	box-shadow: 0 0 0 4px #9be5ff, 0 0 0 7px #129ce1;
+}
+
+ul #guideHover .guideContent {
+	position: absolute;
+	bottom: 150px;
+	left: -20px;
+	width: 900px;
+	max-height: 540px;
+	/* overflow-y: auto; */
+	background: #aaffff;
+	padding: 20px;
+	box-sizing: border-box;
+	border-radius: 15px;
+	visibility: hidden;
+	opacity: 0;
+	transition: 0.5s;
+	transform: translateX(-45%) translateY(20px);
+	box-shadow: 0 5px 5px #3e3e3e;
+}
+
+
+ul #guideHover:hover .guideContent {
+	visibility: visible;
+	opacity: 0.9;
+	transform: translateX(-45%) translateY(60px);
+	z-index: 5;
+}
+
+ul #guideHover:hover #guideIcon {
+	opacity: 1;
+	transition: 0.5s;
+	transform: rotate(-180deg);
+}
+
+ul #guideHover .guideContent h2 {
+	text-align: center;
+	margin: 0;
+	padding: 0;
+}
+
+ul #guideHover .guideContent p {
+	font-weight: 500;
+}
+
+#StaticDiv ul li{
+	display: inline-block;
+	position: relative;
+	list-style: none;
+	height: 20px;
+}
